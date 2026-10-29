@@ -1,5 +1,11 @@
 # felucca-bsp
 
+> **Archived fork.** This fork adds one commit to felucca-bsp: `fm1_guard_pc_widen` and a MIDI out tap, so that code
+> loaded at run time may run (the *fext* socket of [jmarianski/Felucca](https://github.com/jmarianski/Felucca) and
+> [jmarianski/sloop-fm1](https://github.com/jmarianski/sloop-fm1), made for the
+> [fble](https://github.com/jmarianski/fble) Bluetooth MIDI module). It is not maintained; use the upstream
+> [felucca-bsp](https://github.com/hugelton/felucca-bsp), which has its own open Bluetooth stack.
+
 A base for custom firmware on M-VAVE synthesizers built around JieLi chips.
 It holds the chip layer (clock, interrupts, flash, USB, UART, timers, boot entry) and one
 directory of board code per device. It has no sound code and no user interface.
