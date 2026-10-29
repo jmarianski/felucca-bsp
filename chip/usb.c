@@ -28,7 +28,9 @@
  * stereo, 44.1 kHz, EP4 OUT isochronous adaptive). uac_service takes each packet into a ring (nested in the render
  * too); uac_play, after each render, adds it to the output, resampled to the I2S clock (~44,117.6 Hz): the ring's
  * fill steers the rate, so it neither runs dry nor overflows.
- * FELUCCA_USB_HOST=1 adds opt-in MIDI host mode; see docs/USB_HOST.md for the main-loop contract. */
+ * FELUCCA_USB_HOST=1 adds opt-in MIDI host mode; see docs/USB_HOST.md for the main-loop contract.
+ * FELUCCA_MIDI_OUT_TAP(pkt), when the application defines it (a function declared before this file), is given every
+ * packet midi_out_try sends, from the same interrupt, whether a computer listens or not (Felucca's fext socket). */
 #include "fm1_usb.h"   /* registers (chip/) */
 /* Host is opt-in and excluded from update loaders, even with a global build flag. */
 #ifndef FELUCCA_USB_HOST
@@ -275,6 +277,9 @@ static int midi_enqueue(uint32_t pkt, uint32_t source)
 /* Returns 0 when disconnected or full; the application retains responsibility for unsent releases. */
 static int midi_out_try(uint32_t pkt)                /* from the audio ISR */
 {
+#ifdef FELUCCA_MIDI_OUT_TAP
+    FELUCCA_MIDI_OUT_TAP(pkt);                          /* the application's copy of every packet out (USB or not) */
+#endif
     if (!usb_midi_out_ready() || mo_w - mo_r >= MQ)
         return 0;
     midi_out_q[mo_w % MQ] = pkt;

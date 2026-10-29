@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MPL-2.0
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
  * Copyright (C) 2026 Charles Vestal (fm1_guard_stack_floor, fm1_sp_in_isr)
+ * Copyright (C) 2026 Jacek Mariański (fm1_guard_pc_widen)
  * Written against the public JieLi AC79 SDK (Apache-2.0); see NOTICE. */
 /* FM-1 hardware guards (after the SDK's
  * cpu/wl82/debug.c). Every violation raises the CPU exception (vector 1) and
@@ -18,7 +19,8 @@
  *   bus-invalid       fetch/read/write of unmapped space (NULL page, XIP
  *                     writes) -> DBG_MSG bits 4, 5, 16..21.
  *   PC limit          instruction fetch outside [0x02000120, _etext]
- *                     -> DBG_MSG bit 12.
+ *                     -> DBG_MSG bit 12. fm1_guard_pc_widen moves its two
+ *                     windows' tops up for code loaded at run time.
  */
 #pragma once
 #include <stdint.h>
@@ -108,6 +110,21 @@ static void fm1_guard_stack_floor(uint32_t lo)
     FM1_EMU_SSP_L = lo;
     FM1_EMU_USP_L = lo;
     FM1_EMU_CON |= 1u << 3;
+    fm1__dbg_lock();
+}
+
+/* widen the PC limit's two windows ([0x02000120, _etext] and [_rt_start, _rt_end), fm1_guard_enable) up to xip_last
+ * and ram_last (inclusive), their low ends as they were: code the firmware did not link but runs (a module in the
+ * flash above the firmware, its RAM code above .ram_text). Only ever wider; a csync first (that RAM code was just
+ * written as data) */
+static void fm1_guard_pc_widen(uint32_t xip_last, uint32_t ram_last)
+{
+    __asm__ volatile("csync" ::: "memory");
+    fm1__dbg_unlock();
+    if (xip_last > (uint32_t)(uintptr_t)_etext)
+        FM1_PC_LIMIT0_H = xip_last;
+    if (ram_last >= (uint32_t)(uintptr_t)_rt_end && (uint32_t)(uintptr_t)_rt_end > (uint32_t)(uintptr_t)_rt_start)
+        FM1_PC_LIMIT1_H = ram_last;
     fm1__dbg_lock();
 }
 
